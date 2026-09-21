@@ -1,0 +1,7 @@
+/gologin
+/server
+/seed
+*.exe
+*.test
+*.out
+.env
