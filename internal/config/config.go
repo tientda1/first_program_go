@@ -4,6 +4,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -18,6 +20,8 @@ type Config struct {
 }
 
 func Load() Config {
+	_ = godotenv.Load()
+
 	return Config{
 		Addr:             env("ADDR", ":8080"),
 		DatabaseURL:      env("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/gologin?sslmode=disable"),
