@@ -5,29 +5,76 @@ kiểm tra tài khoản bị xoá / bị khoá, và trả về đúng các trư�
 
 ## Chạy thử
 
+### 1. Chuẩn bị file `.env`
+Đảm bảo file `.env` đã được cấu hình đúng thông tin kết nối:
+```env
+ADDR=:9010
+DATABASE_URL=postgres://kyo:tientda1@localhost:5432/first_db?sslmode=disable
+BCRYPT_COST=12
+SESSION_TTL_HOURS=24
+MAX_LOGIN_ATTEMPTS=5
+LOCK_MINUTES=15
+RATE_LIMIT_PER_MIN=10
+RATE_LIMIT_BURST=5
+```
+
+### 2. Khởi động PostgreSQL
+* **Cách 1: Dùng Docker (khuyến nghị trên Windows/Ubuntu có Docker Desktop):**
+  ```bash
+  docker compose up -d
+  ```
+  *(Migrations trong `migrations/001_init.sql` sẽ tự động chạy ở lần đầu khởi tạo container).*
+  Nếu cần chạy migration thủ công vào container:
+  ```bash
+  docker exec -i gologin-postgres psql -U kyo -d first_db < migrations/001_init.sql
+  ```
+
+* **Cách 2: Không dùng Docker (PostgreSQL cài trực tiếp trên Ubuntu):**
+  ```bash
+  # Khởi động service và import database
+  sudo systemctl start postgresql
+  sudo -u postgres psql -d first_db -f migrations/001_init.sql
+  ```
+
+### 3. Tạo user mẫu (`alice` / `Password123!`)
 ```bash
-# 1. Bật Postgres (Docker) — file migrations tự chạy ở lần khởi tạo đầu tiên
-docker compose up -d
-
-# nếu DB đã tồn tại từ trước, chạy migration tay:
-# docker exec -i gologin-postgres psql -U postgres -d gologin < migrations/001_init.sql
-
-# 2. Tạo user mẫu (alice / Password123!)
 go run ./cmd/seed
+```
 
-# 3. Chạy server
+### 4. Chạy server
+```bash
 go run ./cmd/server
+```
+*(Server sẽ lắng nghe tại cổng `http://localhost:9010` theo cấu hình `.env`)*
 
-# 4. Test
-curl -i -X POST localhost:8080/api/login \
+### 5. Test API
+
+#### Trên Linux / macOS (curl) hoặc Postman:
+```bash
+# Đăng nhập lấy Token (hoặc nhận qua HttpOnly cookie "session")
+curl -i -X POST http://localhost:9010/api/login \
   -H 'Content-Type: application/json' \
   -d '{"identifier":"alice","password":"Password123!"}'
 
-curl -i localhost:8080/api/me -H 'Authorization: Bearer <token>'
-curl -i -X POST localhost:8080/api/logout -H 'Authorization: Bearer <token>'
+# Xem thông tin người dùng hiện tại
+curl -i http://localhost:9010/api/me -H 'Authorization: Bearer <token>'
+
+# Đăng xuất
+curl -i -X POST http://localhost:9010/api/logout -H 'Authorization: Bearer <token>'
 ```
 
-Cấu hình qua biến môi trường, xem `.env.example`.
+#### Trên Windows (PowerShell):
+```powershell
+# Đăng nhập
+$res = Invoke-RestMethod -Uri "http://localhost:9010/api/login" -Method Post -ContentType "application/json" -Body '{"identifier":"alice","password":"Password123!"}'
+$token = $res.token
+
+# Xem thông tin
+Invoke-RestMethod -Uri "http://localhost:9010/api/me" -Headers @{ Authorization = "Bearer $token" }
+
+# Đăng xuất
+Invoke-RestMethod -Uri "http://localhost:9010/api/logout" -Method Post -Headers @{ Authorization = "Bearer $token" }
+```
 
 ## Cấu trúc
 
